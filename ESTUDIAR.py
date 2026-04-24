@@ -2,7 +2,11 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 import functools
 
+# ==========================================================
+# 1. DECORADORES
+# ==========================================================
 def decorador_interfaz(titulo):
+    """Decorador para dar formato a los encabezados de las interfaces."""
     def wrapper(func):
         def inner(*args, **kwargs):
             print("=" * 40)
@@ -13,12 +17,31 @@ def decorador_interfaz(titulo):
         return inner
     return wrapper
 
+
+def manejar_errores(func):
+    """Decorador: captura errores sin romper el programa."""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except ValueError as e:
+            print(f"  ⚠  Error de valor: {e}")
+        except FileNotFoundError as e:
+            print(f"  ⚠  Error de archivo: {e}")
+        except Exception as e:
+            print(f"  ⚠  Error inesperado: {type(e).__name__} - {e}")
+    return wrapper
+
+
+# ==========================================================
+# 2. MIXINS
+# ==========================================================
 class CalculosMixin:
+    """Mixin para proveer funcionalidades de cálculo y validación."""
     def validar_fecha(self, fecha_str):
         try:
             return datetime.strptime(fecha_str, "%d/%m/%Y")
         except ValueError:
-            return None     
+            return None
 
     def calcular_descuento(self, tipo, tiempo, valor_hora, remunerado):
         if remunerado == 'S':
@@ -26,6 +49,9 @@ class CalculosMixin:
         factor = 8 if tipo == 'D' else 1
         return round(float(tiempo) * factor * valor_hora, 2)
 
+# ==========================================================
+# 3. INTERFACES (CLASES ABSTRACTAS)
+# ==========================================================
 class ICrud(ABC):
     @abstractmethod
     def crear(self): pass
@@ -36,6 +62,9 @@ class ICrud(ABC):
     @abstractmethod
     def eliminar(self): pass
 
+# ==========================================================
+# 4. ENTIDADES
+# ==========================================================
 class Empleado:
     secuencia = 0
     def __init__(self, nombre, sueldo):
@@ -66,13 +95,20 @@ class Permiso:
         self.tiempo = float(tiempo)
         self.descuento = descuento
 
+# ==========================================================
+# 5. CORE DEL SISTEMA (LÓGICA Y CRUD)
+# ==========================================================
 class SistemaGestion(ICrud, CalculosMixin):
     def __init__(self):
         self.empleados = []
         self.tipos_permisos = []
         self.permisos = []
 
+    # ----------------------------------------------------------
+    # CREAR
+    # ----------------------------------------------------------
     @decorador_interfaz("REGISTRO DE EMPLEADO")
+    @manejar_errores
     def crear_empleado(self):
         print(f"ID: {Empleado.secuencia + 1}")
         nombre = input("Nombre: ")
@@ -91,6 +127,7 @@ class SistemaGestion(ICrud, CalculosMixin):
             print("Empleado guardado con éxito.")
 
     @decorador_interfaz("TIPO DE PERMISO")
+    @manejar_errores
     def crear_tipo_permiso(self):
         print(f"ID: {TipoPermiso.secuencia + 1}")
         desc = input("Descripción: ")
@@ -100,59 +137,60 @@ class SistemaGestion(ICrud, CalculosMixin):
             print("Tipo de permiso registrado.")
 
     @decorador_interfaz("REGISTRO DE PERMISO")
+    @manejar_errores
     def crear_permiso(self):
-        try:
-            emp_id = int(input("ID Empleado: "))
-            tipo_id = int(input("ID Tipo Permiso: "))
+        emp_id = int(input("ID Empleado: "))
+        tipo_id = int(input("ID Tipo Permiso: "))
 
-            emp = next((e for e in self.empleados if e.id == emp_id), None)
-            tp = next((t for t in self.tipos_permisos if t.id == tipo_id), None)
+        emp = next((e for e in self.empleados if e.id == emp_id), None)
+        tp = next((t for t in self.tipos_permisos if t.id == tipo_id), None)
 
-            if not emp or not tp:
-                print("Error: Empleado o Tipo de Permiso no existe.")
-                return
+        if not emp or not tp:
+            print("Error: Empleado o Tipo de Permiso no existe.")
+            return
 
-            f_desde_str = input("Fecha desde (DD/MM/YYYY): ")
-            f_hasta_str = input("Fecha hasta (DD/MM/YYYY): ")
+        f_desde_str = input("Fecha desde (DD/MM/YYYY): ")
+        f_hasta_str = input("Fecha hasta (DD/MM/YYYY): ")
 
-            f_desde = self.validar_fecha(f_desde_str)
-            f_hasta = self.validar_fecha(f_hasta_str)
+        f_desde = self.validar_fecha(f_desde_str)
+        f_hasta = self.validar_fecha(f_hasta_str)
 
-            if not f_desde or not f_hasta:
-                print("Error: Formato de fecha inválido. Use DD/MM/YYYY.")
-                return
+        if not f_desde or not f_hasta:
+            print("Error: Formato de fecha inválido. Use DD/MM/YYYY.")
+            return
 
-            if f_hasta < f_desde:
-                print("Error: La fecha hasta no puede ser anterior a la fecha desde.")
-                return
+        if f_hasta < f_desde:
+            print("Error: La fecha hasta no puede ser anterior a la fecha desde.")
+            return
 
-            t_dh = input("Tipo (D/H): ").upper()
-            if t_dh not in ('D', 'H'):
-                print("Error: El tipo debe ser D (días) o H (horas).")
-                return
+        t_dh = input("Tipo (D/H): ").upper()
+        if t_dh not in ('D', 'H'):
+            print("Error: El tipo debe ser D (días) o H (horas).")
+            return
 
-            tiempo = float(input("Tiempo (cantidad): "))
-            descuento = self.calcular_descuento(t_dh, tiempo, emp.valor_hora, tp.remunerado)
+        tiempo = float(input("Tiempo (cantidad): "))
+        descuento = self.calcular_descuento(t_dh, tiempo, emp.valor_hora, tp.remunerado)
 
-            print("-" * 40)
-            print("Resumen:")
-            print(f"  Empleado      : {emp.nombre}")
-            print(f"  Tipo permiso  : {tp.descripcion}")
-            print(f"  Fecha desde   : {f_desde_str}")
-            print(f"  Fecha hasta   : {f_hasta_str}")
-            print(f"  Tipo          : {'Días' if t_dh == 'D' else 'Horas'}")
-            print(f"  Tiempo        : {tiempo}")
-            print(f"  ¿Remunerado?  : {tp.remunerado}")
-            print(f"  Descuento     : $ {descuento}")
-            print("-" * 40)
+        print("-" * 40)
+        print("Resumen:")
+        print(f"  Empleado      : {emp.nombre}")
+        print(f"  Tipo permiso  : {tp.descripcion}")
+        print(f"  Fecha desde   : {f_desde_str}")
+        print(f"  Fecha hasta   : {f_hasta_str}")
+        print(f"  Tipo          : {'Días' if t_dh == 'D' else 'Horas'}")
+        print(f"  Tiempo        : {tiempo}")
+        print(f"  ¿Remunerado?  : {tp.remunerado}")
+        print(f"  Descuento     : $ {descuento}")
+        print("-" * 40)
 
-            if input("¿Confirmar? (1. Sí / 2. No): ") == "1":
-                nuevo_p = Permiso(emp_id, tipo_id, f_desde_str, f_hasta_str, t_dh, tiempo, descuento)
-                self.permisos.append(nuevo_p)
-                print("Permiso registrado correctamente.")
-        except ValueError:
-            print("Dato inválido introducido.")
+        if input("¿Confirmar? (1. Sí / 2. No): ") == "1":
+            nuevo_p = Permiso(emp_id, tipo_id, f_desde_str, f_hasta_str, t_dh, tiempo, descuento)
+            self.permisos.append(nuevo_p)
+            print("Permiso registrado correctamente.")
 
+    # ----------------------------------------------------------
+    # CONSULTAR
+    # ----------------------------------------------------------
     def consultar(self):
         print("\n" + "=" * 40)
         print("LISTADO DE EMPLEADOS".center(40))
@@ -196,6 +234,9 @@ class SistemaGestion(ICrud, CalculosMixin):
             print(linea)
             print("-" * 40)
 
+    # ----------------------------------------------------------
+    # ELIMINAR
+    # ----------------------------------------------------------
     @decorador_interfaz("ELIMINAR REGISTRO")
     def eliminar(self):
         print("¿Qué desea eliminar?")
@@ -203,7 +244,6 @@ class SistemaGestion(ICrud, CalculosMixin):
         print("  2. Tipo de Permiso")
         print("  3. Permiso")
         opc = input("Seleccione: ")
-
         if opc == "1":
             self._eliminar_empleado()
         elif opc == "2":
@@ -217,22 +257,17 @@ class SistemaGestion(ICrud, CalculosMixin):
         if not self.empleados:
             print("No hay empleados registrados.")
             return
-
-        print("\n--- Empleados ---")
         for e in self.empleados:
             print(f"  ID: {e.id} | {e.nombre}")
-
         try:
             emp_id = int(input("ID del empleado a eliminar: "))
             emp = next((e for e in self.empleados if e.id == emp_id), None)
             if not emp:
                 print("Empleado no encontrado.")
                 return
-
             vinculados = list(filter(lambda p: p.id_empleado == emp_id, self.permisos))
             if vinculados:
                 print(f"Advertencia: este empleado tiene {len(vinculados)} permiso(s) registrado(s).")
-
             print(f"\nEmpleado a eliminar: {emp.nombre} | Sueldo: $ {emp.sueldo:.2f}")
             if input("¿Confirmar eliminación? (1. Sí / 2. No): ") == "1":
                 self.empleados = list(filter(lambda e: e.id != emp_id, self.empleados))
@@ -245,22 +280,17 @@ class SistemaGestion(ICrud, CalculosMixin):
         if not self.tipos_permisos:
             print("No hay tipos de permiso registrados.")
             return
-
-        print("\n--- Tipos de Permiso ---")
         for t in self.tipos_permisos:
             print(f"  ID: {t.id} | {t.descripcion} | Remunerado: {t.remunerado}")
-
         try:
             tp_id = int(input("ID del tipo de permiso a eliminar: "))
             tp = next((t for t in self.tipos_permisos if t.id == tp_id), None)
             if not tp:
                 print("Tipo de permiso no encontrado.")
                 return
-
             vinculados = list(filter(lambda p: p.id_tipo_permiso == tp_id, self.permisos))
             if vinculados:
                 print(f"Advertencia: este tipo tiene {len(vinculados)} permiso(s) vinculado(s).")
-
             print(f"\nTipo a eliminar: {tp.descripcion} | Remunerado: {tp.remunerado}")
             if input("¿Confirmar eliminación? (1. Sí / 2. No): ") == "1":
                 self.tipos_permisos = list(filter(lambda t: t.id != tp_id, self.tipos_permisos))
@@ -273,20 +303,16 @@ class SistemaGestion(ICrud, CalculosMixin):
         if not self.permisos:
             print("No hay permisos registrados.")
             return
-
-        print("\n--- Permisos ---")
         for p in self.permisos:
             emp = next((e for e in self.empleados if e.id == p.id_empleado), None)
             nombre = emp.nombre if emp else "Desconocido"
             print(f"  ID: {p.id} | Empleado: {nombre} | Desde: {p.fecha_desde} | Hasta: {p.fecha_hasta} | Descuento: $ {p.descuento:.2f}")
-
         try:
             per_id = int(input("ID del permiso a eliminar: "))
             per = next((p for p in self.permisos if p.id == per_id), None)
             if not per:
                 print("Permiso no encontrado.")
                 return
-
             emp = next((e for e in self.empleados if e.id == per.id_empleado), None)
             nombre = emp.nombre if emp else "Desconocido"
             print(f"\nPermiso a eliminar: ID {per.id} | {nombre} | Desde: {per.fecha_desde} | Descuento: $ {per.descuento:.2f}")
@@ -296,6 +322,9 @@ class SistemaGestion(ICrud, CalculosMixin):
         except ValueError:
             print("ID inválido.")
 
+    # ----------------------------------------------------------
+    # ESTADÍSTICAS
+    # ----------------------------------------------------------
     @decorador_interfaz("ESTADÍSTICAS DE PERMISOS")
     def generar_estadisticas(self):
         total_emp = len(self.empleados)
@@ -316,6 +345,9 @@ class SistemaGestion(ICrud, CalculosMixin):
 
     def crear(self): pass
 
+# ==========================================================
+# 6. MENÚ PRINCIPAL
+# ==========================================================
 def menu():
     sistema = SistemaGestion()
     while True:
