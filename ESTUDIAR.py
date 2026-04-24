@@ -2,11 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 import functools
 
-# ==========================================================
-# 1. DECORADORES
-# ==========================================================
 def decorador_interfaz(titulo):
-    """Decorador para dar formato a los encabezados de las interfaces."""
     def wrapper(func):
         def inner(*args, **kwargs):
             print("=" * 40)
@@ -17,11 +13,7 @@ def decorador_interfaz(titulo):
         return inner
     return wrapper
 
-# ==========================================================
-# 2. MIXINS
-# ==========================================================
 class CalculosMixin:
-    """Mixin para proveer funcionalidades de cálculo y validación."""
     def validar_fecha(self, fecha_str):
         try:
             return datetime.strptime(fecha_str, "%d/%m/%Y")
@@ -31,13 +23,9 @@ class CalculosMixin:
     def calcular_descuento(self, tipo, tiempo, valor_hora, remunerado):
         if remunerado == 'S':
             return 0.0
-        # Si es por día (D), se asumen 8 horas laborables por día
         factor = 8 if tipo == 'D' else 1
         return round(float(tiempo) * factor * valor_hora, 2)
 
-# ==========================================================
-# 3. INTERFACES (CLASES ABSTRACTAS)
-# ==========================================================
 class ICrud(ABC):
     @abstractmethod
     def crear(self): pass
@@ -48,9 +36,6 @@ class ICrud(ABC):
     @abstractmethod
     def eliminar(self): pass
 
-# ==========================================================
-# 4. ENTIDADES
-# ==========================================================
 class Empleado:
     secuencia = 0
     def __init__(self, nombre, sueldo):
@@ -66,7 +51,7 @@ class TipoPermiso:
         TipoPermiso.secuencia += 1
         self.id = TipoPermiso.secuencia
         self.descripcion = descripcion
-        self.remunerado = remunerado.upper()  # S o N
+        self.remunerado = remunerado.upper()
 
 class Permiso:
     secuencia = 0
@@ -77,22 +62,16 @@ class Permiso:
         self.id_tipo_permiso = tipo_id
         self.fecha_desde = f_desde
         self.fecha_hasta = f_hasta
-        self.tipo = tipo_dh.upper()  # D o H
+        self.tipo = tipo_dh.upper()
         self.tiempo = float(tiempo)
         self.descuento = descuento
 
-# ==========================================================
-# 5. CORE DEL SISTEMA (LÓGICA Y CRUD)
-# ==========================================================
 class SistemaGestion(ICrud, CalculosMixin):
     def __init__(self):
         self.empleados = []
         self.tipos_permisos = []
         self.permisos = []
 
-    # ----------------------------------------------------------
-    # CREAR
-    # ----------------------------------------------------------
     @decorador_interfaz("REGISTRO DE EMPLEADO")
     def crear_empleado(self):
         print(f"ID: {Empleado.secuencia + 1}")
@@ -174,11 +153,7 @@ class SistemaGestion(ICrud, CalculosMixin):
         except ValueError:
             print("Dato inválido introducido.")
 
-    # ----------------------------------------------------------
-    # CONSULTAR
-    # ----------------------------------------------------------
     def consultar(self):
-        """Consulta general: empleados y tipos de permiso."""
         print("\n" + "=" * 40)
         print("LISTADO DE EMPLEADOS".center(40))
         print("=" * 40)
@@ -197,12 +172,10 @@ class SistemaGestion(ICrud, CalculosMixin):
 
     @decorador_interfaz("CONSULTA DE PERMISOS")
     def consultar_permisos(self):
-        """Muestra todos los permisos registrados con detalle completo."""
         if not self.permisos:
             print("  No hay permisos registrados.")
             return
 
-        # HOF: map para construir líneas de detalle enriquecidas
         def detalle_permiso(p):
             emp = next((e for e in self.empleados if e.id == p.id_empleado), None)
             tp  = next((t for t in self.tipos_permisos if t.id == p.id_tipo_permiso), None)
@@ -223,12 +196,8 @@ class SistemaGestion(ICrud, CalculosMixin):
             print(linea)
             print("-" * 40)
 
-    # ----------------------------------------------------------
-    # ELIMINAR
-    # ----------------------------------------------------------
     @decorador_interfaz("ELIMINAR REGISTRO")
     def eliminar(self):
-        """Menú para elegir qué tipo de registro se desea eliminar."""
         print("¿Qué desea eliminar?")
         print("  1. Empleado")
         print("  2. Tipo de Permiso")
@@ -260,7 +229,6 @@ class SistemaGestion(ICrud, CalculosMixin):
                 print("Empleado no encontrado.")
                 return
 
-            # Verificar si tiene permisos vinculados (HOF: filter)
             vinculados = list(filter(lambda p: p.id_empleado == emp_id, self.permisos))
             if vinculados:
                 print(f"Advertencia: este empleado tiene {len(vinculados)} permiso(s) registrado(s).")
@@ -268,7 +236,6 @@ class SistemaGestion(ICrud, CalculosMixin):
             print(f"\nEmpleado a eliminar: {emp.nombre} | Sueldo: $ {emp.sueldo:.2f}")
             if input("¿Confirmar eliminación? (1. Sí / 2. No): ") == "1":
                 self.empleados = list(filter(lambda e: e.id != emp_id, self.empleados))
-                # Eliminar también los permisos vinculados
                 self.permisos = list(filter(lambda p: p.id_empleado != emp_id, self.permisos))
                 print("Empleado (y sus permisos vinculados) eliminados correctamente.")
         except ValueError:
@@ -329,19 +296,14 @@ class SistemaGestion(ICrud, CalculosMixin):
         except ValueError:
             print("ID inválido.")
 
-    # ----------------------------------------------------------
-    # ESTADÍSTICAS
-    # ----------------------------------------------------------
     @decorador_interfaz("ESTADÍSTICAS DE PERMISOS")
     def generar_estadisticas(self):
         total_emp = len(self.empleados)
         total_per = len(self.permisos)
 
-        # HOF: filter
         remu    = list(filter(lambda x: next((t.remunerado for t in self.tipos_permisos if t.id == x.id_tipo_permiso), 'N') == 'S', self.permisos))
         no_remu = list(filter(lambda x: next((t.remunerado for t in self.tipos_permisos if t.id == x.id_tipo_permiso), 'N') == 'N', self.permisos))
 
-        # HOF: reduce y map
         total_tiempo     = functools.reduce(lambda a, b: a + b.tiempo, self.permisos, 0)
         total_descuentos = sum(map(lambda x: x.descuento, self.permisos))
 
@@ -352,12 +314,8 @@ class SistemaGestion(ICrud, CalculosMixin):
         print(f"Total horas/días solicitados : {total_tiempo}")
         print(f"Monto total descontado       : $ {total_descuentos:.2f}")
 
-    # Implementación obligatoria de ICrud (crear ya está cubierto por los métodos específicos)
     def crear(self): pass
 
-# ==========================================================
-# 6. MENÚ PRINCIPAL
-# ==========================================================
 def menu():
     sistema = SistemaGestion()
     while True:
