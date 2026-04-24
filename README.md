@@ -1,6 +1,6 @@
 # 📋 Sistema de Gestión de Permisos
 
-Sistema de consola en Python para administrar empleados, tipos de permiso y ausencias laborales con cálculo automático de descuentos.
+Sistema de consola en Python para administrar empleados, tipos de permiso y ausencias laborales con cálculo automático de descuentos..
 
 ---
 
