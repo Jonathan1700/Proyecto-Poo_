@@ -2,7 +2,16 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 import functools
 
-
+def decorador_interfaz(titulo):
+    def wrapper(func):
+        def inner(*args, **kwargs):
+            print("=" * 40)
+            print(f"{titulo.center(40)}")
+            print("=" * 40)
+            res = func(*args, **kwargs)
+            return res
+        return inner
+    return wrapper
 
 class CalculosMixin:
     def validar_fecha(self, fecha_str):
